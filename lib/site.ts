@@ -11,7 +11,7 @@ export const SITE = {
   registration: 'IRDAI registration details will be shown here.',
 } as const;
 
-export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
+export const API_URL = 'https://insurance-backend-repo-production.up.railway.app/api/v1';
 
 export const NAV = [
   { href: '/features', label: 'Features' },
