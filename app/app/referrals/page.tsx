@@ -1,4 +1,5 @@
 'use client';
+import Link from 'next/link';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, type SyntheticEvent } from 'react';
@@ -11,6 +12,14 @@ import { ApiError } from '@/lib/portal/client';
 
 const TONE = { Assigned: 'blue', Converted: 'green', Rejected: 'grey' } as const;
 
+
+function ChevronRight() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 18l6-6-6-6" />
+    </svg>
+  );
+}
 export default function ReferralsPage() {
   const qc = useQueryClient();
   const { can } = useSession();
@@ -40,11 +49,11 @@ export default function ReferralsPage() {
 
   return (
     <>
-      <PageHead title="Referrals" sub="People your customers sent your way. Each referral becomes a lead with the referrer locked on it."
+      <PageHead back={{ href: '/app', label: 'Dashboard' }} title="Referrals" sub="People your customers sent your way. Each referral becomes a lead with the referrer locked on it."
         actions={can('referral:create') && <Button onClick={() => { setErrors({}); setAdding(true); }}>Record referral</Button>} />
       <ErrorNote error={referrals.error} retry={() => void referrals.refetch()} />
       {referrals.isLoading ? <Loading /> : (
-        <Table head={['Referred person', 'Mobile', 'Referred by', 'Interest', 'Status', 'Date']} empty={!referrals.data?.length && <Empty title="No referrals yet" text="Ask happy customers who else they know who needs cover." />}>
+        <Table head={['Referred person', 'Mobile', 'Referred by', 'Interest', 'Status', 'Date', '']} empty={!referrals.data?.length && <Empty title="No referrals yet" text="Ask happy customers who else they know who needs cover." />}>
           {referrals.data?.map((r) => (
             <tr key={r.id}>
               <Td><RowLink href={`/app/leads/${r.leadId}`}>{r.name}</RowLink><span className="block text-[13px] text-muted">{r.relationship}</span></Td>
@@ -53,6 +62,7 @@ export default function ReferralsPage() {
               <Td>{r.interest}</Td>
               <Td><Badge tone={TONE[r.status]}>{r.status}</Badge></Td>
               <Td className="whitespace-nowrap text-muted">{date(r.createdAt)}</Td>
+              <Td className="w-10 text-right"><Link href={`/app/leads/${r.leadId}`} className="inline-flex items-center justify-center text-muted hover:text-blue transition-colors"><ChevronRight /></Link></Td>
             </tr>
           ))}
         </Table>

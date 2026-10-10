@@ -67,3 +67,12 @@ body { margin: 0; background: var(--color-paper); overflow-x: clip; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
 }
+
+/* Task completion toast animation — drops in from top */
+@keyframes drop-in {
+  0%   { transform: translateX(-50%) translateY(-60px); opacity: 0; }
+  60%  { transform: translateX(-50%) translateY(6px);  opacity: 1; }
+  80%  { transform: translateX(-50%) translateY(-3px); }
+  100% { transform: translateX(-50%) translateY(0);    opacity: 1; }
+}
+.animate-drop-in { animation: drop-in 0.4s ease forwards; }

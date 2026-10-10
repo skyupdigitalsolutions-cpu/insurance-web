@@ -6,12 +6,12 @@ import { useState, type SyntheticEvent } from 'react';
 import { dateTime, mobile } from '@/components/portal/format';
 import { CONTACT_TYPES, LEAD_OUTCOMES, LEAD_STATUS, label } from '@/components/portal/options';
 import { useSession } from '@/components/portal/session';
-import { Badge, Button, ButtonLink, Dialog, Empty, ErrorNote, Facts, Loading, PageHead, Panel, Select, Textarea } from '@/components/portal/ui';
-import { convertLead, getLead, logLeadActivity, setLeadStatus } from '@/lib/portal/api';
+import { Badge, Button, ButtonLink, Dialog, Empty, ErrorNote, Facts, Input, Loading, PageHead, Panel, Select, Textarea } from '@/components/portal/ui';
+import { convertLead, getLead, logLeadActivity, setLeadStatus, updateLead } from '@/lib/portal/api';
 import type { LeadActivity, LeadStatus } from '@/lib/portal/types';
 
-// Same rule as the server: a lead becomes a customer once it is qualified
 const CONVERTIBLE: LeadStatus[] = ['QUALIFIED', 'QUOTATION', 'FOLLOW_UP'];
+const SOURCES = ['Referral', 'Paid Ads', 'Campaign', 'Walk-in', 'Cold call', 'Social media', 'Website', 'Other'] as const;
 
 export default function LeadDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -21,6 +21,7 @@ export default function LeadDetailPage() {
   const lead = useQuery({ queryKey: ['lead', id], queryFn: () => getLead(id) });
   const [losing, setLosing] = useState(false);
   const [reason, setReason] = useState('');
+  const [editOpen, setEditOpen] = useState(false);
   const refresh = () => Promise.all([qc.invalidateQueries({ queryKey: ['lead', id] }), qc.invalidateQueries({ queryKey: ['leads'] })]);
 
   const status = useMutation({ mutationFn: (v: { s: LeadStatus; reason?: string }) => setLeadStatus(id, v.s, v.reason), onSuccess: async () => { setLosing(false); await refresh(); } });
@@ -29,6 +30,7 @@ export default function LeadDetailPage() {
     mutationFn: () => convertLead(id),
     onSuccess: async (c) => { await refresh(); await qc.invalidateQueries({ queryKey: ['customers'] }); router.push(`/app/customers/${c.id}`); },
   });
+  const edit = useMutation({ mutationFn: (data: Parameters<typeof updateLead>[1]) => updateLead(id, data), onSuccess: async () => { setEditOpen(false); await refresh(); } });
 
   if (lead.isLoading) return <Loading />;
   if (!lead.data) return <ErrorNote error={lead.error} retry={() => void lead.refetch()} />;
@@ -43,11 +45,26 @@ export default function LeadDetailPage() {
     log.mutate({ type: f.get('type') as LeadActivity['type'], outcome: String(f.get('outcome')), ...(notes ? { notes } : {}) }, { onSuccess: () => (e.target as HTMLFormElement).reset() });
   }
 
+  function submitEdit(e: SyntheticEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const f = Object.fromEntries(new FormData(e.currentTarget)) as Record<string, string>;
+    edit.mutate({
+      name: (f['name'] ?? '').trim() || undefined,
+      mobile: (f['mobile'] ?? '').trim() || undefined,
+      email: (f['email'] ?? '').trim() || null,
+      source: (f['source'] ?? '') || undefined,
+      requirement: (f['requirement'] ?? '').trim() || null,
+      notes: (f['notes'] ?? '').trim() || null,
+    });
+  }
+
   return (
     <>
-      <PageHead back={{ href: '/app/leads', label: 'Leads' }} title={l.name} sub={<span className="flex flex-wrap items-center gap-2"><Badge tone={tone}>{text}</Badge><span className="tabular">{mobile(l.mobile)}</span></span>}
+      <PageHead back={{ href: '/app/leads', label: 'Leads' }} title={l.name}
+        sub={<span className="flex flex-wrap items-center gap-2"><Badge tone={tone}>{text}</Badge><span className="tabular">{mobile(l.mobile)}</span></span>}
         actions={<>
           <a href={`tel:${l.mobile}`} className="inline-flex items-center rounded-full bg-white px-4 py-2 text-[14px] font-semibold text-ink ring-1 ring-line hover:ring-blue/40">Call</a>
+          {canUpdate && <Button variant="secondary" onClick={() => setEditOpen(true)}>Edit</Button>}
           {l.customerId ? <ButtonLink href={`/app/customers/${l.customerId}`}>Open customer</ButtonLink>
             : canUpdate && can('customer:create') && CONVERTIBLE.includes(l.status) && <Button busy={convert.isPending} onClick={() => convert.mutate()}>Convert to customer</Button>}
         </>} />
@@ -55,7 +72,14 @@ export default function LeadDetailPage() {
       <div className="grid gap-6 xl:grid-cols-[1fr_1.1fr]">
         <div className="space-y-6">
           <Panel title="Details">
-            <Facts rows={[['Source', l.source + (l.referralCode ? ` (${l.referralCode})` : '') + (l.campaign ? ` · ${l.campaign}` : '')], ['Email', l.email ?? '—'], ['Need', l.requirement ?? '—'], ['Notes', l.notes ?? '—'], ['Added', dateTime(l.createdAt)], ...(l.lostReason ? [['Lost because', l.lostReason] as [string, string]] : [])]} />
+            <Facts rows={[
+              ['Source', l.source + (l.referralCode ? ` (${l.referralCode})` : '') + (l.campaign ? ` · ${l.campaign}` : '')],
+              ['Email', l.email ?? '—'],
+              ['Need', l.requirement ?? '—'],
+              ['Notes', l.notes ?? '—'],
+              ['Added', dateTime(l.createdAt)],
+              ...(l.lostReason ? [['Lost because', l.lostReason] as [string, string]] : []),
+            ]} />
           </Panel>
           {canUpdate && l.allowedTransitions.length > 0 && (
             <Panel title="Move to">
@@ -65,7 +89,7 @@ export default function LeadDetailPage() {
                     onClick={() => (s === 'LOST' ? setLosing(true) : status.mutate({ s }))}>{label(LEAD_STATUS, s)[0]}</Button>
                 ))}
               </div>
-              <p className="mt-3 text-[13.5px] text-muted">Only the next sensible steps are offered. Logging a first contact moves a new lead to Contacted; once qualified, it can be converted into a customer.</p>
+              <p className="mt-3 text-[13.5px] text-muted">Only the next sensible steps are offered.</p>
             </Panel>
           )}
         </div>
@@ -95,6 +119,28 @@ export default function LeadDetailPage() {
           </Panel>
         </div>
       </div>
+
+      {/* Edit lead dialog */}
+      {editOpen && (
+        <Dialog title="Edit lead" wide onClose={() => setEditOpen(false)} footer={<><Button variant="secondary" onClick={() => setEditOpen(false)}>Cancel</Button><Button type="submit" form="lead-edit" busy={edit.isPending}>Save changes</Button></>}>
+          <ErrorNote error={edit.error} />
+          <form id="lead-edit" onSubmit={submitEdit} noValidate className="grid gap-4 sm:grid-cols-2">
+            <Input label="Full name" name="name" defaultValue={l.name} required />
+            <Input label="Mobile" name="mobile" type="tel" defaultValue={l.mobile} required />
+            <Input label="Email (optional)" name="email" type="email" defaultValue={l.email ?? ''} />
+            <Select label="Source" name="source" defaultValue={l.source}>
+              {SOURCES.map((s) => <option key={s}>{s}</option>)}
+            </Select>
+            <div className="sm:col-span-2">
+              <Textarea label="Requirement / Need (optional)" name="requirement" rows={2} defaultValue={l.requirement ?? ''} />
+            </div>
+            <div className="sm:col-span-2">
+              <Textarea label="Notes (optional)" name="notes" rows={2} defaultValue={l.notes ?? ''} />
+            </div>
+          </form>
+        </Dialog>
+      )}
+
       {losing && (
         <Dialog title={`Mark ${l.name} as lost?`} onClose={() => setLosing(false)} footer={<>
           <Button variant="secondary" onClick={() => setLosing(false)}>Cancel</Button>
