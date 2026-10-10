@@ -9,7 +9,12 @@ export function PageHead({ title, sub, actions, back }: { title: string; sub?: R
   return (
     <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
       <div className="min-w-0">
-        {back && <Link href={back.href} className="mb-2 inline-block text-[14px] font-semibold text-blue-deep hover:underline">{back.label}</Link>}
+        {back && (
+          <Link href={back.href} className="mb-2 inline-flex items-center gap-1 text-[14px] font-semibold text-blue-deep hover:underline">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+            {back.label}
+          </Link>
+        )}
         <h1 className="font-display text-[28px] font-semibold leading-tight tracking-tight text-ink">{title}</h1>
         {sub && <div className="mt-1 text-[15px] text-muted">{sub}</div>}
       </div>

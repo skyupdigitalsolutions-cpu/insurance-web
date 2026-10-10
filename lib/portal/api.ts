@@ -49,11 +49,15 @@ export const setLeadStatus = (id: string, status: LeadStatus, reason?: string) =
   api<Lead>(`/leads/${id}/status`, { method: 'PATCH', body: { status, reason } });
 export const logLeadActivity = (id: string, a: Omit<LeadActivity, 'id' | 'at'>) => api<Lead>(`/leads/${id}/activities`, { method: 'POST', body: a });
 export const convertLead = (id: string) => api<Customer>(`/leads/${id}/convert`, { method: 'POST' });
+export const updateLead = (id: string, input: Partial<{ name: string; mobile: string; email: string | null; source: string; requirement: string | null; notes: string | null }>) =>
+  api<Lead>(`/leads/${id}`, { method: 'PATCH', body: input });
 
 // ---------- customers ----------
 export const listCustomers = async (q: string) => (await api<Items<Customer>>('/customers', { query: { q } })).items;
 export const getCustomer = (id: string) => api<Customer>(`/customers/${id}`);
 export const createCustomer = (input: NewCustomerInput) => api<Customer>('/customers', { method: 'POST', body: input });
+export const updateCustomer = (id: string, input: Partial<{ name: string; mobile: string; email: string | null; dob: string | null; city: string | null; pin: string | null }>) =>
+  api<Customer>(`/customers/${id}`, { method: 'PATCH', body: input });
 export const recordConsent = (id: string) => api<Customer>(`/customers/${id}/consents`, { method: 'POST', body: { purpose: 'data-processing' } });
 export const listFamily = async (id: string) => (await api<Items<FamilyMember>>(`/customers/${id}/family`)).items;
 export const addFamily = (input: Omit<FamilyMember, 'id'>) => api<FamilyMember>(`/customers/${input.customerId}/family`, { method: 'POST', body: input });
@@ -99,6 +103,8 @@ export const issuanceChecklist = async (id: string) => (await api<Items<Checklis
 export const issuePolicy = (id: string) => api<Policy>(`/policies/${id}/issue`, { method: 'POST' });
 
 // ---------- renewals, referrals, tasks, messages ----------
+export const updateTask = (id: string, input: Partial<{ title: string; type: string; due: string; relatedTo: string | null }>) =>
+  api<{ id: string; title: string; type: string; due: string; relatedTo?: string; done: boolean; createdAt: string }>(`/tasks/${id}/edit`, { method: 'PATCH', body: input });
 export const listRenewals = async (window: RenewalWindow) => (await api<Items<Renewal>>('/renewals', { query: { window } })).items;
 export const getRenewal = (id: string) => api<Renewal>(`/renewals/${id}`);
 export const logRenewalContact = (id: string, outcome: string, notes?: string) => api<Renewal>(`/renewals/${id}/activities`, { method: 'POST', body: { outcome, notes } });
