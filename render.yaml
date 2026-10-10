@@ -1,0 +1,18 @@
+# Render Blueprint for the website + advisor portal (one Next.js app, Node runtime).
+# Render → New → Blueprint → choose this repository. Then add the site address to the API's CORS_ORIGINS.
+services:
+  - type: web
+    name: insurance-web
+    runtime: node
+    region: singapore
+    plan: starter
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      - key: NEXT_PUBLIC_API_URL
+        sync: false # https://api.yourdomain.in/api/v1
+      - key: NEXT_PUBLIC_SITE_URL
+        sync: false # https://www.yourdomain.in (sitemap and sharing links)
